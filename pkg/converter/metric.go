@@ -50,12 +50,25 @@ func (metric *Metric) SetTargetImageSize(ctx context.Context, cs content.Store, 
 }
 
 func (metric *Metric) SetSourceImageSize(ctx context.Context, cvt *Converter, source string) error {
+	var imageSizeSum int64
 	image, err := cvt.provider.Image(ctx, source)
 	if err != nil {
 		return err
 	}
-	metric.SourceImageSize, err = metric.imageSize(ctx, cvt.provider.ContentStore(), image)
-	return err
+	cs := cvt.provider.ContentStore()
+	descs, err := images.FilterPlatforms(images.ChildrenHandler(cs), cvt.platformMC)(ctx, *image)
+	if err != nil {
+		return err
+	}
+	for _, desc := range descs {
+		imageSize, err := metric.imageSize(ctx, cs, &desc)
+		if err != nil {
+			return err
+		}
+		imageSizeSum += imageSize
+	}
+	metric.SourceImageSize = imageSizeSum
+	return nil
 }
 
 func (metric *Metric) imageSize(ctx context.Context, cs content.Store, image *ocispec.Descriptor) (int64, error) {
