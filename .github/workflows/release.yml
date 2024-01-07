@@ -45,7 +45,7 @@ jobs:
         file: script/release/${{ matrix.platform }}/Dockerfile
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        outputs: type=image,name=dingyadong/harbor-acceld,push-by-digest=true,name-canonical=true,push=true
+        outputs: type=image,name=dingyadong/harbor-acceld,name-canonical=true,push=true
     - name: Export digest
       run: |
         mkdir -p /tmp/digests
