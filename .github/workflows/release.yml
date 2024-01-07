@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+env:
+  REGISTRY_IMAGE: dingyadong/harbor-acceld
 
 jobs:
   release_image:
@@ -20,14 +22,13 @@ jobs:
       run: |
         platform=${{ matrix.platform }}
         echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-    - name: Export Image Tag
-      run: |
-        echo "IMAGE_TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: goharbor/harbor-acceld:${{ env.IMAGE_TAG }}
+        images: ${{ env.REGISTRY_IMAGE }}
+        tags: |
+          type=semver,pattern={{version}}
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx
@@ -45,8 +46,7 @@ jobs:
         platforms: ${{ matrix.platform }}
         file: script/release/${{ matrix.platform }}/Dockerfile
         labels: ${{ steps.meta.outputs.labels }}
-        load: true
-        outputs: type=image,name=goharbor/harbor-acceld:${{ env.IMAGE_TAG }},push-by-digest=true,name-canonical=true,push=true
+        outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
     - name: Export digest
       run: |
         mkdir -p /tmp/digests
@@ -59,13 +59,6 @@ jobs:
         path: /tmp/digests/*
         if-no-files-found: error
         retention-days: 1
-    - name: Test Image
-      # Enable tty for docker
-      shell: 'script -q -e -c "bash {0}"'
-      run: |
-        docker run -v $PWD/misc/config/config.nydus.yaml:/etc/acceld-config.yaml -d --rm -p 2077:2077 goharbor/harbor-acceld:${{ env.IMAGE_TAG }} /etc/acceld-config.yaml
-        sleep 5
-        curl -f http://127.0.0.1:2077/api/v1/health
 
   merge_image:
     runs-on: ubuntu-latest
@@ -87,7 +80,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: goharbor/harbor-acceld:${{ env.IMAGE_TAG }}
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -97,18 +92,38 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'goharbor/harbor-acceld:${{ env.IMAGE_TAG }}@sha256:%s ' *)
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect goharbor/harbor-acceld:${{ env.IMAGE_TAG }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: goharbor/harbor-acceld
+          repository: ${{ env.REGISTRY_IMAGE }}
           short-description:  ${{ github.event.repository.description }}
           readme-filepath: ./README.md
+
+  test_image:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    needs:
+      - merge_image
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Test Image
+        # Enable tty for docker
+        shell: 'script -q -e -c "bash {0}"'
+        run: |
+          docker run -v $PWD/misc/config/config.nydus.yaml:/etc/acceld-config.yaml -d --rm -p 2077:2077 ${{ env.REGISTRY_IMAGE }} /etc/acceld-config.yaml
+          sleep 5
+          curl -f http://127.0.0.1:2077/api/v1/health
 
   release_binary:
     runs-on: ubuntu-20.04
