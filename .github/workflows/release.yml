@@ -20,14 +20,13 @@ jobs:
       run: |
         platform=${{ matrix.platform }}
         echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-    - name: Export Image Tag
-      run: |
-        echo "IMAGE_TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: goharbor/harbor-acceld:${{ env.IMAGE_TAG }}
+        images: dingyadong/harbor-acceld
+        tags: |
+          type=semver,pattern={{version}}
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx
@@ -44,9 +43,9 @@ jobs:
         context: .
         platforms: ${{ matrix.platform }}
         file: script/release/${{ matrix.platform }}/Dockerfile
+        tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        load: true
-        outputs: type=image,name=goharbor/harbor-acceld:${{ env.IMAGE_TAG }},push-by-digest=true,name-canonical=true,push=true
+        outputs: type=image,name=dingyadong/harbor-acceld,name-canonical=true,push=true
     - name: Export digest
       run: |
         mkdir -p /tmp/digests
@@ -63,7 +62,7 @@ jobs:
       # Enable tty for docker
       shell: 'script -q -e -c "bash {0}"'
       run: |
-        docker run -v $PWD/misc/config/config.nydus.yaml:/etc/acceld-config.yaml -d --rm -p 2077:2077 goharbor/harbor-acceld:${{ env.IMAGE_TAG }} /etc/acceld-config.yaml
+        docker run -v $PWD/misc/config/config.nydus.yaml:/etc/acceld-config.yaml -d --rm -p 2077:2077 dingyadong/harbor-acceld:${{ steps.meta.outputs.version }} /etc/acceld-config.yaml
         sleep 5
         curl -f http://127.0.0.1:2077/api/v1/health
 
@@ -87,7 +86,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: goharbor/harbor-acceld:${{ env.IMAGE_TAG }}
+          images: dingyadong/harbor-acceld
+          tags: |
+            type=semver,pattern={{version}}
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -97,16 +98,16 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'goharbor/harbor-acceld:${{ env.IMAGE_TAG }}@sha256:%s ' *)
+            $(printf 'dingyadong/harbor-acceld@sha256:%s ' *)
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect goharbor/harbor-acceld:${{ env.IMAGE_TAG }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect dingyadong/harbor-acceld:${{ steps.meta.outputs.version }}
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: goharbor/harbor-acceld
+          repository: dingyadong/harbor-acceld
           short-description:  ${{ github.event.repository.description }}
           readme-filepath: ./README.md
 
