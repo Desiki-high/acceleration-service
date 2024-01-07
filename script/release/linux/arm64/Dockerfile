@@ -6,9 +6,6 @@ ARG NYDUS_LINUX_ARM64_SHA256SUM="812398992eb8bb7993eb38a2bc6b222439037cfda9e7b60
 
 # Install acceld
 COPY ./ /accel
-RUN make -C /accel install-check-tools
-RUN make -C /accel check
-RUN make -C /accel
 
 # Install nydus component
 RUN wget https://github.com/dragonflyoss/image-service/releases/download/$NYDUS_VERSION/nydus-static-$NYDUS_VERSION-linux-arm64.tgz
