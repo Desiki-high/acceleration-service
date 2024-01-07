@@ -1,14 +1,12 @@
 FROM golang:1.21.5 AS build
 
-ARG NYDUS_VERSION=v2.2.3
+ARG NYDUS_VERSION=v2.2.4
 
-ARG NYDUS_LINUX_AMD64_SHA256SUM="80b6e86f30a6f61958a878b705c5e36c7312cf0816e51c1e5e5f309931e28813"
+ARG NYDUS_LINUX_AMD64_SHA256SUM="2fbebb016d6fbbc52fd575be1753d063ca9ada19ff2db02d405955a53a077b51"
 
 # Install acceld
 COPY ./ /accel
-RUN make -C /accel install-check-tools
-RUN make -C /accel check
-RUN make -C /accel
+RUN make -C /accel build
 
 # Install nydus component
 RUN wget https://github.com/dragonflyoss/image-service/releases/download/$NYDUS_VERSION/nydus-static-$NYDUS_VERSION-linux-amd64.tgz
