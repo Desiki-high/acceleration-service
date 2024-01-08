@@ -45,7 +45,7 @@ jobs:
       with:
         context: .
         platforms: ${{ matrix.platform }}
-        file: script/release/${{ matrix.platform }}/Dockerfile
+        file: script/release/Dockerfile
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
     - name: Export digest
@@ -121,7 +121,7 @@ jobs:
         # Enable tty for docker
         shell: 'script -q -e -c "bash {0}"'
         run: |
-          docker run -v $PWD/misc/config/config.nydus.yaml:/etc/acceld-config.yaml -d --rm -p 2077:2077 ${{ env.REGISTRY_IMAGE }} /etc/acceld-config.yaml
+          docker run -v $PWD/misc/config/config.nydus.yaml:/etc/acceld-config.yaml -d --rm -p 2077:2077 ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }} /etc/acceld-config.yaml
           sleep 5
           curl -f http://127.0.0.1:2077/api/v1/health
 
