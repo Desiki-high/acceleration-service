@@ -16,6 +16,7 @@ package adapter
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/containerd/containerd/reference/docker"
@@ -34,7 +35,8 @@ const (
 // Source: 192.168.1.1/nginx:latest
 // Target: 192.168.1.1/nginx:latest-suffix
 func addSuffix(ref, suffix string) (string, error) {
-	named, err := docker.ParseDockerRef(ref)
+	re := regexp.MustCompile(`@sha256.*`)
+	named, err := docker.ParseDockerRef(re.ReplaceAllString(ref, ""))
 	if err != nil {
 		return "", errors.Wrap(err, "invalid source image reference")
 	}
@@ -50,7 +52,8 @@ func addSuffix(ref, suffix string) (string, error) {
 // Source:192.168.1.1/nginx:latest
 // Target:192.168.1.1/nginx:tag
 func setReferenceTag(ref, tag string) (string, error) {
-	named, err := docker.ParseDockerRef(ref)
+	re := regexp.MustCompile(`@sha256.*`)
+	named, err := docker.ParseDockerRef(re.ReplaceAllString(ref, ""))
 	if err != nil {
 		return "", errors.Wrap(err, "invalid source image reference")
 	}
